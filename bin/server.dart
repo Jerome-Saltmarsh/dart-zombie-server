@@ -80,6 +80,10 @@ void main() {
       if (id == null) return;
 
       dynamic character = findCharacterById(id);
+      if (messageObject[keyPlayerX] != null){
+        character[keyPositionX] = messageObject[keyPlayerX];
+        character[keyPositionY] = messageObject[keyPlayerY];
+      }
 
       switch (command) {
         case commandMoveUp:

@@ -22,6 +22,8 @@ const keyState = 's';
 const keyCommand = 'c';
 const keyId = 'i';
 const keyValue = 'v';
+const keyPlayerX = 'px';
+const keyPlayerY = 'py';
 
 const double characterSpeed = 5;
 
