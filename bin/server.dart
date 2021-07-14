@@ -1,80 +1,113 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_web_socket/shelf_web_socket.dart';
 
-const commandMoveUp = 0;
-const commandMoveRight = 1;
-const commandMoveDown = 2;
-const commandMoveLeft = 3;
-const commandSpawn = 4;
-const commandUpdate = 5;
-const commandId = 6;
-
+import 'common.dart';
 
 void main() {
   print('starting web socket server');
 
-  List<dynamic> characters = [];
-  int _id = 0;
+  List<dynamic> _characters = [];
 
-  dynamic findCharacterById(int id){
-    return characters.firstWhere((element) => element['id'] == id);
+  void fixedUpdate() {
+    _characters.forEach(updateCharacter);
   }
 
-  int spawnCharacter(){
+  const host = '0.0.0.0';
+  const port = 8080;
+  Timer updateTimer =
+      Timer.periodic(Duration(milliseconds: 1000 ~/ 60), (timer) {
+    fixedUpdate();
+  });
+  int _id = 0;
+
+  void pause() {
+    if (!updateTimer.isActive) return;
+    updateTimer.cancel();
+  }
+
+  void resume() {
+    if (updateTimer.isActive) return;
+
+    updateTimer = Timer.periodic(Duration(milliseconds: 1000 ~/ 60), (timer) {
+      fixedUpdate();
+    });
+  }
+
+  dynamic findCharacterById(int id) {
+    return _characters.firstWhere((element) => element[keyId] == id, orElse: (){
+      throw Exception("character not found with id $id");
+    });
+  }
+
+  int spawnCharacter() {
     Map<String, dynamic> object = new Map();
-    object['x'] = 500;
-    object['y'] = 400;
-    object['id'] = _id;
-    characters.add(object);
+    object[keyPositionX] = 500;
+    object[keyPositionY] = 400;
+    object[keyId] = _id;
+    object[keyState] = characterStateIdle;
+    _characters.add(object);
     _id++;
-    return object['id'];
+    return _id - 1;
   }
 
   var handler = webSocketHandler((webSocket) {
     webSocket.stream.listen((message) {
 
       Map<String, dynamic> response = Map();
-      response['command'] = commandUpdate;
-      response['value'] = characters;
+      response[keyCommand] = commandUpdate;
+      response[keyValue] = _characters;
       webSocket.sink.add(jsonEncode(response));
 
-      if(message == commandUpdate) return;
+      if (message == commandUpdate) return;
 
-      dynamic request = jsonDecode(message);
-      dynamic command = request['command'];
-      dynamic id = request['id'];
+      dynamic messageObject = jsonDecode(message);
+      dynamic command = messageObject[keyCommand];
 
       if (command == commandSpawn) {
         var id = spawnCharacter();
         Map<String, dynamic> response = Map();
-        response['command'] = commandId;
-        response['value'] = id;
+        response[keyCommand] = commandId;
+        response[keyValue] = id;
         webSocket.sink.add(jsonEncode(response));
+        return;
       }
-      if (command == commandMoveUp){
-        dynamic character = findCharacterById(id);
-        character['y'] -= 10;
-      }
-      if (command == commandMoveRight){
-        dynamic character = findCharacterById(id);
-        character['x'] += 10;
-      }
-      if (command == commandMoveDown){
-        dynamic character = findCharacterById(id);
-        character['y'] += 10;
-      }
-      if (command == commandMoveLeft){
-        dynamic character = findCharacterById(id);
-        character['x'] -= 10;
+
+      dynamic id = messageObject[keyId];
+
+      if (id == null) return;
+
+      dynamic character = findCharacterById(id);
+
+      switch (command) {
+        case commandMoveUp:
+          character[keyState] = characterStateWalkingUp;
+          return;
+        case commandMoveRight:
+          character[keyState] = characterStateWalkingRight;
+          return;
+        case commandMoveDown:
+          character[keyState] = characterStateWalkingDown;
+          return;
+        case commandMoveLeft:
+          character[keyState] = characterStateWalkingLeft;
+          return;
+        case commandIdle:
+          character[keyState] = characterStateIdle;
+          return;
+        case commandPause:
+          pause();
+          return;
+        case commandResume:
+          resume();
+          return;
       }
     });
   });
 
-
-  shelf_io.serve(handler, '0.0.0.0', 8080).then((server) {
+  shelf_io.serve(handler, host, port).then((server) {
     print('Serving at ws://${server.address.host}:${server.port}');
   });
 }
-
