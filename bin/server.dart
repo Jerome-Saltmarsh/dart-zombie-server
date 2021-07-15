@@ -23,21 +23,9 @@ void main() {
   });
   int _id = 0;
 
-  void pause() {
-    if (!updateTimer.isActive) return;
-    updateTimer.cancel();
-  }
-
-  void resume() {
-    if (updateTimer.isActive) return;
-
-    updateTimer = Timer.periodic(Duration(milliseconds: 1000 ~/ 60), (timer) {
-      fixedUpdate();
-    });
-  }
-
   dynamic findCharacterById(int id) {
-    return _characters.firstWhere((element) => element[keyId] == id, orElse: (){
+    return _characters.firstWhere((element) => element[keyPlayerId] == id,
+        orElse: () {
       throw Exception("character not found with id $id");
     });
   }
@@ -46,7 +34,8 @@ void main() {
     Map<String, dynamic> object = new Map();
     object[keyPositionX] = 500;
     object[keyPositionY] = 400;
-    object[keyId] = _id;
+    object[keyPlayerId] = _id;
+    object[keyDirection] = directionDown;
     object[keyState] = characterStateIdle;
     _characters.add(object);
     _id++;
@@ -55,58 +44,37 @@ void main() {
 
   var handler = webSocketHandler((webSocket) {
     webSocket.stream.listen((message) {
-
-      Map<String, dynamic> response = Map();
-      response[keyCommand] = commandUpdate;
-      response[keyValue] = _characters;
-      webSocket.sink.add(jsonEncode(response));
-
-      if (message == commandUpdate) return;
-
       dynamic messageObject = jsonDecode(message);
       dynamic command = messageObject[keyCommand];
 
-      if (command == commandSpawn) {
-        var id = spawnCharacter();
-        Map<String, dynamic> response = Map();
-        response[keyCommand] = commandId;
-        response[keyValue] = id;
-        webSocket.sink.add(jsonEncode(response));
-        return;
-      }
-
-      dynamic id = messageObject[keyId];
-
-      if (id == null) return;
-
-      dynamic character = findCharacterById(id);
-      if (messageObject[keyPlayerX] != null){
-        character[keyPositionX] = messageObject[keyPlayerX];
-        character[keyPositionY] = messageObject[keyPlayerY];
-      }
-
       switch (command) {
-        case commandMoveUp:
-          character[keyState] = characterStateWalkingUp;
+        case commandSpawn:
+          var id = spawnCharacter();
+          Map<String, dynamic> response = Map();
+          response[keyCommand] = commandSpawn;
+          response[keyValue] = id;
+          webSocket.sink.add(jsonEncode(response));
           return;
-        case commandMoveRight:
-          character[keyState] = characterStateWalkingRight;
+        case commandUpdate:
+          Map<String, dynamic> response = Map();
+          if (messageObject[keyPlayerX] != null) {
+            dynamic playerCharacter = findCharacterById(messageObject[keyPlayerId]);
+            playerCharacter[keyPositionX] = playerCharacter[keyPositionX];
+            playerCharacter[keyPositionY] = playerCharacter[keyPositionY];
+            playerCharacter[keyDirection] = playerCharacter[keyDirection];
+            playerCharacter[keyState] = playerCharacter[keyState];
+          }
+          response[keyCommand] = commandUpdate;
+          response[keyValue] = _characters;
+          webSocket.sink.add(jsonEncode(response));
           return;
-        case commandMoveDown:
-          character[keyState] = characterStateWalkingDown;
-          return;
-        case commandMoveLeft:
-          character[keyState] = characterStateWalkingLeft;
-          return;
-        case commandIdle:
-          character[keyState] = characterStateIdle;
-          return;
-        case commandPause:
-          pause();
-          return;
-        case commandResume:
-          resume();
-          return;
+        case commandPlayer:
+          dynamic playerId = messageObject[keyPlayerId];
+          dynamic playerCharacter = findCharacterById(playerId);
+          int direction = messageObject[keyPlayerDirection];
+          int characterState = messageObject[keyState];
+          playerCharacter[keyState] = characterState;
+          playerCharacter[keyDirection] = direction;
       }
     });
   });
