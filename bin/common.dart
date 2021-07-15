@@ -1,6 +1,8 @@
 const commandSpawn = 1;
 const commandPlayer = 2;
 const commandUpdate = 3;
+const commandAttack = 4;
+const commandSpawnZombie = 5;
 
 const characterStateIdle = 0;
 const characterStateWalking = 1;
@@ -27,6 +29,8 @@ const keyPlayerDirection = 'pd';
 const keyRequestDirection = 'rd';
 
 const double characterSpeed = 1.5;
+const double characterRadius = 7;
+const double characterRadius2 = characterRadius * 2;
 
 void updateCharacter(dynamic character) {
   switch (character[keyState]) {

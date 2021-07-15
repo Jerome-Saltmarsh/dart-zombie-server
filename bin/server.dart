@@ -5,42 +5,46 @@ import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_web_socket/shelf_web_socket.dart';
 
 import 'common.dart';
+import 'game_maths.dart';
+import 'game_physics.dart';
 
 void main() {
   print('starting web socket server');
-
-  List<dynamic> _characters = [];
-
-  void fixedUpdate() {
-    _characters.forEach(updateCharacter);
-  }
-
+  int _id = 0;
+  List<dynamic> characters = [];
   const host = '0.0.0.0';
   const port = 8080;
-  Timer updateTimer =
-      Timer.periodic(Duration(milliseconds: 1000 ~/ 60), (timer) {
+
+  void fixedUpdate() {
+    characters.forEach(updateCharacter);
+    updateCollisions(characters);
+  }
+
+  Timer updateTimer = Timer.periodic(Duration(milliseconds: 1000 ~/ 60), (timer) {
     fixedUpdate();
   });
-  int _id = 0;
+
 
   dynamic findCharacterById(int id) {
-    return _characters.firstWhere((element) => element[keyPlayerId] == id,
+    return characters.firstWhere((element) => element[keyPlayerId] == id,
         orElse: () {
       throw Exception("character not found with id $id");
     });
   }
 
-  int spawnCharacter() {
+  int spawnCharacter(double x, double y) {
     Map<String, dynamic> object = new Map();
-    object[keyPositionX] = 500;
-    object[keyPositionY] = 400;
+    object[keyPositionX] = x;
+    object[keyPositionY] = y;
     object[keyPlayerId] = _id;
     object[keyDirection] = directionDown;
     object[keyState] = characterStateIdle;
-    _characters.add(object);
+    characters.add(object);
     _id++;
     return _id - 1;
   }
+
+  spawnCharacter(400, 400);
 
   var handler = webSocketHandler((webSocket) {
     webSocket.stream.listen((message) {
@@ -49,7 +53,7 @@ void main() {
 
       switch (command) {
         case commandSpawn:
-          var id = spawnCharacter();
+          var id = spawnCharacter(500, 500);
           Map<String, dynamic> response = Map();
           response[keyCommand] = commandSpawn;
           response[keyValue] = id;
@@ -57,24 +61,28 @@ void main() {
           return;
         case commandUpdate:
           Map<String, dynamic> response = Map();
-          if (messageObject[keyPlayerX] != null) {
-            dynamic playerCharacter = findCharacterById(messageObject[keyPlayerId]);
-            playerCharacter[keyPositionX] = playerCharacter[keyPositionX];
-            playerCharacter[keyPositionY] = playerCharacter[keyPositionY];
-            playerCharacter[keyDirection] = playerCharacter[keyDirection];
-            playerCharacter[keyState] = playerCharacter[keyState];
-          }
+          // if (messageObject[keyPlayerX] != null) {
+          //   dynamic playerCharacter = findCharacterById(messageObject[keyPlayerId]);
+          //   playerCharacter[keyPositionX] = messageObject[keyPlayerX];
+          //   playerCharacter[keyPositionY] = messageObject[keyPlayerY];
+          //   playerCharacter[keyDirection] = messageObject[keyPlayerDirection];
+          //   playerCharacter[keyState] = messageObject[keyState];
+          // }
           response[keyCommand] = commandUpdate;
-          response[keyValue] = _characters;
+          response[keyValue] = characters;
           webSocket.sink.add(jsonEncode(response));
           return;
         case commandPlayer:
-          dynamic playerId = messageObject[keyPlayerId];
+          int playerId = messageObject[keyPlayerId];
           dynamic playerCharacter = findCharacterById(playerId);
           int direction = messageObject[keyPlayerDirection];
           int characterState = messageObject[keyState];
           playerCharacter[keyState] = characterState;
           playerCharacter[keyDirection] = direction;
+          return;
+        case commandSpawnZombie:
+          spawnCharacter(randomBetween(0, 1000), randomBetween(0, 800));
+          return;
       }
     });
   });
