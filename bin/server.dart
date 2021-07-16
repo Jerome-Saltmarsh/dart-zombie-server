@@ -26,7 +26,7 @@ void main() {
 
 
   dynamic findCharacterById(int id) {
-    return characters.firstWhere((element) => element[keyPlayerId] == id,
+    return characters.firstWhere((element) => element[keyCharacterId] == id,
         orElse: () {
       throw Exception("character not found with id $id");
     });
@@ -36,7 +36,7 @@ void main() {
     Map<String, dynamic> object = new Map();
     object[keyPositionX] = x;
     object[keyPositionY] = y;
-    object[keyPlayerId] = _id;
+    object[keyCharacterId] = _id;
     object[keyDirection] = directionDown;
     object[keyState] = characterStateIdle;
     characters.add(object);
@@ -47,6 +47,7 @@ void main() {
   spawnCharacter(400, 400);
 
   var handler = webSocketHandler((webSocket) {
+
     webSocket.stream.listen((message) {
       dynamic messageObject = jsonDecode(message);
       dynamic command = messageObject[keyCommand];
@@ -56,24 +57,18 @@ void main() {
           var id = spawnCharacter(500, 500);
           Map<String, dynamic> response = Map();
           response[keyCommand] = commandSpawn;
-          response[keyValue] = id;
+          response[keyCharacterId] = id;
+          response[keyCharacters] = characters;
           webSocket.sink.add(jsonEncode(response));
           return;
         case commandUpdate:
           Map<String, dynamic> response = Map();
-          // if (messageObject[keyPlayerX] != null) {
-          //   dynamic playerCharacter = findCharacterById(messageObject[keyPlayerId]);
-          //   playerCharacter[keyPositionX] = messageObject[keyPlayerX];
-          //   playerCharacter[keyPositionY] = messageObject[keyPlayerY];
-          //   playerCharacter[keyDirection] = messageObject[keyPlayerDirection];
-          //   playerCharacter[keyState] = messageObject[keyState];
-          // }
           response[keyCommand] = commandUpdate;
-          response[keyValue] = characters;
+          response[keyCharacters] = characters;
           webSocket.sink.add(jsonEncode(response));
           return;
         case commandPlayer:
-          int playerId = messageObject[keyPlayerId];
+          int playerId = messageObject[keyCharacterId];
           dynamic playerCharacter = findCharacterById(playerId);
           int direction = messageObject[keyPlayerDirection];
           int characterState = messageObject[keyState];
