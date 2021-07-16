@@ -1,8 +1,7 @@
 const commandSpawn = 1;
-const commandPlayer = 2;
-const commandUpdate = 3;
-const commandAttack = 4;
-const commandSpawnZombie = 5;
+const commandUpdate = 2;
+const commandAttack = 3;
+const commandSpawnZombie = 4;
 
 const characterStateIdle = 0;
 const characterStateWalking = 1;

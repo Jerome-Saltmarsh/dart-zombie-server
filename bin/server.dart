@@ -65,15 +65,15 @@ void main() {
           Map<String, dynamic> response = Map();
           response[keyCommand] = commandUpdate;
           response[keyCharacters] = characters;
+          if (messageObject[keyCharacterId] != null) {
+            int playerId = messageObject[keyCharacterId];
+            dynamic playerCharacter = findCharacterById(playerId);
+            int direction = messageObject[keyDirection];
+            int characterState = messageObject[keyState];
+            playerCharacter[keyState] = characterState;
+            playerCharacter[keyDirection] = direction;
+          }
           webSocket.sink.add(jsonEncode(response));
-          return;
-        case commandPlayer:
-          int playerId = messageObject[keyCharacterId];
-          dynamic playerCharacter = findCharacterById(playerId);
-          int direction = messageObject[keyPlayerDirection];
-          int characterState = messageObject[keyState];
-          playerCharacter[keyState] = characterState;
-          playerCharacter[keyDirection] = direction;
           return;
         case commandSpawnZombie:
           spawnCharacter(randomBetween(0, 1000), randomBetween(0, 800));
