@@ -1,13 +1,13 @@
-
-
 import 'common.dart';
 import 'game_maths.dart';
 
-void updateCollisions(List<dynamic> characters){
-  for(int i = 0; i < characters.length; i++){
+void updateCollisions(List<dynamic> characters) {
+  for (int i = 0; i < characters.length; i++) {
     dynamic characterI = characters[i];
-    for(int j = i + 1; j < characters.length; j++){
+    if (isDead(characterI)) continue;
+    for (int j = i + 1; j < characters.length; j++) {
       dynamic characterJ = characters[j];
+      if (isDead(characterJ)) continue;
       double distance = distanceBetween(characterI, characterJ);
       if (distance < characterRadius2) {
         double overlap = characterRadius2 - distance;
@@ -27,4 +27,8 @@ void updateCollisions(List<dynamic> characters){
       }
     }
   }
+}
+
+bool isDead(dynamic character){
+  return character[keyState] == characterStateDead;
 }
