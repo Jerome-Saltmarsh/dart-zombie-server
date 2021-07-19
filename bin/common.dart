@@ -22,16 +22,22 @@ const keyPositionY = 'y';
 const keyDirection = 'd';
 const keyState = 's';
 const keyCommand = 'c';
-const keyCharacterId = 'i';
+const keyCharacterId = 'playerId';
 const keyErrorCode = 'error';
 const keyRotation = 'r';
-const keyCharacters = 'v';
-const keyBullets = 'b';
-const keyPlayerX = 'px';
-const keyPlayerY = 'py';
+const keyCharacters = 'characters';
+const keyBullets = 'bullets';
+const keyPlayerX = 'playerX';
+const keyPlayerY = 'playerY';
 const keyPlayerDirection = 'pd';
 const keyRequestDirection = 'rd';
 const keyFrameOfDeath = 'z';
+const keyPlayerName = 'name';
+const keyType = 'type';
+const keyLastUpdateFrame = 'luf';
+const typeNpc = 'npc';
+const typeHuman = 'human';
+
 
 const double characterSpeed = 1.5;
 const double bulletRadius = 3;

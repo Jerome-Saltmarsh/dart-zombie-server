@@ -5,9 +5,11 @@ import 'dart:math';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_web_socket/shelf_web_socket.dart';
 
+import 'character_utils.dart';
 import 'common.dart';
 import 'game_maths.dart';
 import 'game_physics.dart';
+import 'variables.dart';
 
 void main() {
   print('starting web socket server');
@@ -16,7 +18,6 @@ void main() {
   List<dynamic> bullets = [];
   const host = '0.0.0.0';
   const port = 8080;
-  int frame = 0;
 
   void updateBullets() {
     for (int i = 0; i < bullets.length; i++) {
@@ -34,6 +35,7 @@ void main() {
 
       for (int j = 0; j < characters.length; j++) {
         if (bullet[keyCharacterId] == characters[j][keyCharacterId]) continue;
+        if (isDead(characters[j])) continue;
         double dis = distanceBetween(characters[j], bullet);
         if (dis < characterBulletRadius) {
           bullets.removeAt(i);
@@ -44,12 +46,24 @@ void main() {
         }
       }
     }
-    ;
   }
 
   void updateCharacters() {
     for (int i = 0; i < characters.length; i++) {
       dynamic character = characters[i];
+
+      // TODO Remove this hack
+      if (character[keyPositionX] == double.nan) {
+        character[keyPositionX] = 0;
+        character[keyPositionY] = 0;
+      }
+
+      if (isHuman(character) && connectionExpired(character)) {
+        characters.removeAt(i);
+        i--;
+        continue;
+      }
+
       switch (character[keyState]) {
         case characterStateIdle:
           break;
@@ -87,8 +101,13 @@ void main() {
           break;
         case characterStateDead:
           if (frame - character[keyFrameOfDeath] > 120) {
-            characters.removeAt(i);
-            i--;
+            if (isNpc(character)) {
+              characters.removeAt(i);
+              i--;
+            } else {
+              character[keyState] = characterStateIdle;
+              setPosition(character, x: 0, y: 0);
+            }
           }
       }
     }
@@ -112,80 +131,99 @@ void main() {
     });
   }
 
-  int spawnCharacter(double x, double y) {
-    Map<String, dynamic> object = new Map();
-    object[keyPositionX] = x;
-    object[keyPositionY] = y;
-    object[keyCharacterId] = id;
-    object[keyDirection] = directionDown;
-    object[keyState] = characterStateIdle;
-    characters.add(object);
+  spawnCharacter(double x, double y, {String name = "", bool npc = false}) {
+    if (x == double.nan) {
+      throw Exception("x is nan");
+    }
+    Map<String, dynamic> character = new Map();
+    character[keyPositionX] = x;
+    character[keyPositionY] = y;
+    character[keyCharacterId] = id;
+    character[keyDirection] = directionDown;
+    character[keyState] = characterStateIdle;
+    character[keyType] = npc ? typeNpc : typeHuman;
+    if (name != "") {
+      character[keyPlayerName] = name;
+    }
+    if (!npc) {
+      character[keyLastUpdateFrame] = frame;
+    }
+    characters.add(character);
     id++;
-    return id - 1;
+    return character;
   }
 
-  spawnCharacter(400, 400);
+  spawnCharacter(100, 100, npc: true);
+
+  void spawnRandomZombie() {
+    double r = 500;
+    spawnCharacter(randomBetween(-r, r), randomBetween(-r, r), npc: true);
+  }
 
   var handler = webSocketHandler((webSocket) {
-
     void sendToClient(dynamic response) {
       webSocket.sink.add(jsonEncode(response));
     }
 
-    void handleCommandSpawn(){
-      var id = spawnCharacter(0, 0);
+    void handleCommandSpawn(dynamic request) {
+      var character =
+          spawnCharacter(0, 0, name: request[keyPlayerName], npc: false);
       Map<String, dynamic> response = Map();
-      response[keyCharacterId] = id;
+      response[keyCharacterId] = getId(character);
       response[keyCharacters] = characters;
       response[keyBullets] = bullets;
       sendToClient(response);
       return;
     }
 
-    webSocket.stream.listen((message) {
-      dynamic messageObject = jsonDecode(message);
-      dynamic command = messageObject[keyCommand];
-
-      switch (command) {
+    void onEvent(requestString) {
+      dynamic request = jsonDecode(requestString);
+      switch (request[keyCommand]) {
         case commandSpawn:
-          handleCommandSpawn();
+          handleCommandSpawn(request);
           return;
         case commandUpdate:
           Map<String, dynamic> response = Map();
           response[keyCommand] = commandUpdate;
           response[keyCharacters] = characters;
           response[keyBullets] = bullets;
-          if (messageObject[keyCharacterId] != null) {
-            int playerId = messageObject[keyCharacterId];
+          if (request[keyCharacterId] != null) {
+            int playerId = request[keyCharacterId];
             dynamic playerCharacter = findCharacterById(playerId);
             if (playerCharacter == null) {
-              handleCommandSpawn();
+              handleCommandSpawn(request);
               return;
             } else if (playerCharacter[keyState] != characterStateDead) {
-              int direction = messageObject[keyDirection];
-              int characterState = messageObject[keyState];
+              int direction = request[keyDirection];
+              int characterState = request[keyState];
               playerCharacter[keyState] = characterState;
               playerCharacter[keyDirection] = direction;
+              playerCharacter[keyLastUpdateFrame] = frame;
             }
           }
           sendToClient(response);
           return;
         case commandSpawnZombie:
-          spawnCharacter(randomBetween(0, 1000), randomBetween(0, 800));
+          spawnRandomZombie();
           return;
         case commandAttack:
-          if (messageObject[keyCharacterId] == null) return;
-          int playerId = messageObject[keyCharacterId];
+          if (request[keyCharacterId] == null) return;
+          int playerId = request[keyCharacterId];
           dynamic playerCharacter = findCharacterById(playerId);
+          if (playerCharacter == null) return;
+          if (isDead(playerCharacter)) return;
           Map<String, dynamic> bullet = Map();
           bullet[keyPositionX] = playerCharacter[keyPositionX];
           bullet[keyPositionY] = playerCharacter[keyPositionY];
-          bullet[keyRotation] = messageObject[keyRotation];
+          bullet[keyRotation] = request[keyRotation];
           bullet[keyFrame] = 0;
           bullet[keyCharacterId] = playerId;
           bullets.add(bullet);
       }
-    });
+    }
+
+    // onEvent
+    webSocket.stream.listen(onEvent);
   });
 
   shelf_io.serve(handler, host, port).then((server) {

@@ -1,3 +1,4 @@
+import 'character_utils.dart';
 import 'common.dart';
 import 'game_maths.dart';
 
@@ -29,6 +30,3 @@ void updateCollisions(List<dynamic> characters) {
   }
 }
 
-bool isDead(dynamic character){
-  return character[keyState] == characterStateDead;
-}
