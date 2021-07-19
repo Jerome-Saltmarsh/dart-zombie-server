@@ -31,49 +31,10 @@ const keyPlayerX = 'px';
 const keyPlayerY = 'py';
 const keyPlayerDirection = 'pd';
 const keyRequestDirection = 'rd';
-
-const errorCodePlayerIdNotFound = 0;
+const keyFrameOfDeath = 'z';
 
 const double characterSpeed = 1.5;
 const double bulletRadius = 3;
 const double characterRadius = 7;
 const double characterRadius2 = characterRadius * 2;
 const double characterBulletRadius = characterRadius + bulletRadius;
-
-void updateCharacter(dynamic character) {
-  switch (character[keyState]) {
-    case characterStateIdle:
-      break;
-    case characterStateWalking:
-      switch (character[keyDirection]) {
-        case directionUp:
-          character[keyPositionY] -= characterSpeed;
-          break;
-        case directionUpRight:
-          character[keyPositionX] += characterSpeed * 0.5;
-          character[keyPositionY] -= characterSpeed * 0.5;
-          break;
-        case directionRight:
-          character[keyPositionX] += characterSpeed;
-          break;
-        case directionDownRight:
-          character[keyPositionX] += characterSpeed * 0.5;
-          character[keyPositionY] += characterSpeed * 0.5;
-          break;
-        case directionDown:
-          character[keyPositionY] += characterSpeed;
-          break;
-        case directionDownLeft:
-          character[keyPositionX] -= characterSpeed * 0.5;
-          character[keyPositionY] += characterSpeed * 0.5;
-          break;
-        case directionLeft:
-          character[keyPositionX] -= characterSpeed;
-          break;
-        case directionUpLeft:
-          character[keyPositionX] -= characterSpeed * 0.5;
-          character[keyPositionY] -= characterSpeed * 0.5;
-          break;
-      }
-  }
-}

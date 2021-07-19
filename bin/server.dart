@@ -16,6 +16,7 @@ void main() {
   List<dynamic> bullets = [];
   const host = '0.0.0.0';
   const port = 8080;
+  int frame = 0;
 
   void updateBullets() {
     for (int i = 0; i < bullets.length; i++) {
@@ -28,8 +29,8 @@ void main() {
         continue;
       }
       double bulletRotation = bullet[keyRotation];
-      bullet[keyPositionX] -= cos(bulletRotation + (pi * 0.5)) * 3;
-      bullet[keyPositionY] -= sin(bulletRotation + (pi * 0.5)) * 3;
+      bullet[keyPositionX] -= cos(bulletRotation + (pi * 0.5)) * 6;
+      bullet[keyPositionY] -= sin(bulletRotation + (pi * 0.5)) * 6;
 
       for (int j = 0; j < characters.length; j++) {
         if (bullet[keyCharacterId] == characters[j][keyCharacterId]) continue;
@@ -38,6 +39,7 @@ void main() {
           bullets.removeAt(i);
           i--;
           characters[j][keyState] = characterStateDead;
+          characters[j][keyFrameOfDeath] = frame;
           break;
         }
       }
@@ -45,8 +47,56 @@ void main() {
     ;
   }
 
+  void updateCharacters() {
+    for (int i = 0; i < characters.length; i++) {
+      dynamic character = characters[i];
+      switch (character[keyState]) {
+        case characterStateIdle:
+          break;
+        case characterStateWalking:
+          switch (character[keyDirection]) {
+            case directionUp:
+              character[keyPositionY] -= characterSpeed;
+              break;
+            case directionUpRight:
+              character[keyPositionX] += characterSpeed * 0.5;
+              character[keyPositionY] -= characterSpeed * 0.5;
+              break;
+            case directionRight:
+              character[keyPositionX] += characterSpeed;
+              break;
+            case directionDownRight:
+              character[keyPositionX] += characterSpeed * 0.5;
+              character[keyPositionY] += characterSpeed * 0.5;
+              break;
+            case directionDown:
+              character[keyPositionY] += characterSpeed;
+              break;
+            case directionDownLeft:
+              character[keyPositionX] -= characterSpeed * 0.5;
+              character[keyPositionY] += characterSpeed * 0.5;
+              break;
+            case directionLeft:
+              character[keyPositionX] -= characterSpeed;
+              break;
+            case directionUpLeft:
+              character[keyPositionX] -= characterSpeed * 0.5;
+              character[keyPositionY] -= characterSpeed * 0.5;
+              break;
+          }
+          break;
+        case characterStateDead:
+          if (frame - character[keyFrameOfDeath] > 120) {
+            characters.removeAt(i);
+            i--;
+          }
+      }
+    }
+  }
+
   void fixedUpdate() {
-    characters.forEach(updateCharacter);
+    frame++;
+    updateCharacters();
     updateCollisions(characters);
     updateBullets();
   }
@@ -77,8 +127,19 @@ void main() {
   spawnCharacter(400, 400);
 
   var handler = webSocketHandler((webSocket) {
+
     void sendToClient(dynamic response) {
       webSocket.sink.add(jsonEncode(response));
+    }
+
+    void handleCommandSpawn(){
+      var id = spawnCharacter(0, 0);
+      Map<String, dynamic> response = Map();
+      response[keyCharacterId] = id;
+      response[keyCharacters] = characters;
+      response[keyBullets] = bullets;
+      sendToClient(response);
+      return;
     }
 
     webSocket.stream.listen((message) {
@@ -87,12 +148,7 @@ void main() {
 
       switch (command) {
         case commandSpawn:
-          var id = spawnCharacter(500, 500);
-          Map<String, dynamic> response = Map();
-          response[keyCharacterId] = id;
-          response[keyCharacters] = characters;
-          response[keyBullets] = bullets;
-          sendToClient(response);
+          handleCommandSpawn();
           return;
         case commandUpdate:
           Map<String, dynamic> response = Map();
@@ -103,9 +159,9 @@ void main() {
             int playerId = messageObject[keyCharacterId];
             dynamic playerCharacter = findCharacterById(playerId);
             if (playerCharacter == null) {
-              response[keyErrorCode] = errorCodePlayerIdNotFound;
-            } else
-            if (playerCharacter[keyState] != characterStateDead) {
+              handleCommandSpawn();
+              return;
+            } else if (playerCharacter[keyState] != characterStateDead) {
               int direction = messageObject[keyDirection];
               int characterState = messageObject[keyState];
               playerCharacter[keyState] = characterState;
